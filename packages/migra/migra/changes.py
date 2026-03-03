@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from functools import partial
+from graphlib import TopologicalSorter
 from typing import Any, TypeVar
 
 from .schemainspect.inspected import Inspected
@@ -240,8 +241,18 @@ def get_table_changes(
     added, removed, modified, _ = differences(tables_from, tables_target)
 
     statements = Statements()
-    for t, v in removed.items():
-        statements.append(v.drop_statement)
+    # Sort drops in reverse dependency order
+    if removed:
+        drop_graph: dict[str, set[str]] = {}
+        for t, v in removed.items():
+            deps_in_removed = {d for d in v.dependents if d in removed}
+            drop_graph[t] = deps_in_removed
+        try:
+            drop_order = list(TopologicalSorter(drop_graph).static_order())
+        except Exception:
+            drop_order = list(removed.keys())
+        for t in drop_order:
+            statements.append(removed[t].drop_statement)
 
     enums_pre, enums_post = get_enum_modifications(
         tables_from, tables_target, enums_from, enums_target, return_tuple=True
@@ -249,11 +260,22 @@ def get_table_changes(
 
     statements += enums_pre
 
-    for t, v in added.items():
-        statements.append(v.create_statement)
-        if v.rowsecurity:
-            rls_alter = v.alter_rls_statement
-            statements.append(rls_alter)
+    # Sort creates in dependency order
+    if added:
+        create_graph: dict[str, set[str]] = {}
+        for t, v in added.items():
+            deps_in_added = {d for d in v.dependent_on if d in added}
+            create_graph[t] = deps_in_added
+        try:
+            create_order = list(TopologicalSorter(create_graph).static_order())
+        except Exception:
+            create_order = list(added.keys())
+        for t in create_order:
+            v = added[t]
+            statements.append(v.create_statement)
+            if v.rowsecurity:
+                rls_alter = v.alter_rls_statement
+                statements.append(rls_alter)
 
     statements += enums_post
 
