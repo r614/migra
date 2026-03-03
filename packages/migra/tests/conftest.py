@@ -1,9 +1,29 @@
+import io
 import os
 from uuid import uuid4
 
 import psycopg
 import pytest
 from psycopg import sql
+
+
+schemainspect_test_role = "schemainspect_test_role"
+
+
+def create_role(s, rolename):
+    role = s.execute(
+        "SELECT 1 FROM pg_roles WHERE rolname = %s",
+        (rolename,),
+    )
+
+    role_exists = bool(list(role))
+
+    if not role_exists:
+        s.execute(f"create role {rolename}")
+
+
+def outs():
+    return io.StringIO(), io.StringIO()
 
 
 def _pg_url(dbname: str = "postgres") -> str:
