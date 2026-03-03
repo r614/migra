@@ -123,7 +123,7 @@ def do_fixture_test(
     if schema:
         flags += ["--schema", schema]
     if exclude_schema:
-        flags += ["--exclude_schema", exclude_schema]
+        flags += ["--exclude-schema", exclude_schema]
     if create_extensions_only:
         flags += ["--create-extensions-only"]
     if ignore_extension_versions:
@@ -229,3 +229,9 @@ def do_fixture_test(
         args = parse_args(flags + ["EMPTY", "EMPTY"])
         out, err = outs()
         assert run(args, out=out, err=err) == 0
+
+
+def test_exclude_schema_flag():
+    """Verify --exclude-schema flag works (kebab-case)."""
+    args = parse_args(["--exclude-schema", "myschema", "--unsafe", "EMPTY", "EMPTY"])
+    assert args.exclude_schema == "myschema"
