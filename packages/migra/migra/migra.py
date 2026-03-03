@@ -132,8 +132,10 @@ class Migration:
         if concurrent_indexes:
             new_stmts = Statements()
             for s in self.statements:
-                if s.lstrip().lower().startswith("create index") and "concurrently" not in s.lower():
-                    s = s.replace("create index ", "create index concurrently ", 1)
+                lower = s.lstrip().lower()
+                if lower.startswith("create index") and "concurrently" not in lower:
+                    idx = s.lower().index("create index") + len("create index")
+                    s = s[:idx] + " concurrently" + s[idx:]
                 new_stmts.append(s)
             new_stmts.safe = self.statements.safe
             self.statements = new_stmts
