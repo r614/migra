@@ -1,49 +1,27 @@
 *.py[cod]
-
-# C extensions
 *.so
-
-# Packages
 *.egg
 *.egg-info
-dist
-build
-eggs
-parts
-bin
-var
-sdist
-develop-eggs
-.installed.cfg
-lib
-lib64
-__pycache__
-wheelhouse
+dist/
+build/
+__pycache__/
 
-# Installer logs
-pip-log.txt
+# UV
+.venv/
 
-# Unit test / coverage reports
+# Test / coverage
 .coverage*
 .tox
-nosetests.xml
-.pytest_cache
+.pytest_cache/
+.ruff_cache/
 
-# Translations
-*.mo
+# IDE
+.vscode/
+.idea/
 
-# Mr Developer
-.mr.developer.cfg
-.project
-.pydevproject
-
-.cache
-
-docs/site
-
-scratch
-# poetry.lock
-pip-wheel-metadata
+# OS
 .DS_Store
 
-.vscode
+# Project
+scratch/
+docs/site

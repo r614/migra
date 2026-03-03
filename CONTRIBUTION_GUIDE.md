@@ -1,23 +1,30 @@
-# Contribution guide
+# Contributing
 
-## Trust the process
+## Before coding
 
-Up until recently, `migra` had a very laissez-faire approach to contributions, but that created a few issues that made it harder for maintainers to review and left PRs languishing for too long.
+Open an issue first to discuss the approach. This helps avoid wasted effort and gives maintainers a chance to provide guidance.
 
-This new contributions guidelines are aimed to fix that, while still making contributing easy and approachable.
+## Structure
 
-Make sure your contribution follows these steps:
+This is a UV workspace monorepo with two packages:
 
-- Before getting into code, raise an issue - maintainers should have useful advice on how to approach the change. Build some basic consensus on the approach before coding.
+- `packages/migra` — schema diff and migration generation
+- `packages/schemainspect` — PostgreSQL schema introspection
 
-- Break the fix/feature/change into several smaller changes. Most changes will also involve changing `schemainspect` at the same time, which does most of the gruntwork under the hood of migra.
+Most features require changes to both packages. `schemainspect` handles database introspection, `migra` handles diffing and SQL generation.
 
-- Keep the individual PRs extremely small. 100 lines or less ideally. This one is key for making them quick and easy to review.
+## Development
 
-## Meet the maintainers
+```bash
+just install    # install dependencies
+just test       # run all tests (requires local PostgreSQL)
+just lint       # run linter
+just fmt        # format code
+```
 
-Your humble team of maintainers currently consists of the following folks:
+## Pull requests
 
-- @djrobstep (original author)
-- @maximsmol, @kennyworkman, @aidanabd (new volunteers from latch.bio)
-
+- Keep PRs small and focused — ideally under 200 lines
+- Add tests for new functionality
+- Run `just check` before submitting
+- If your change touches schema introspection, add a test fixture in `packages/migra/tests/FIXTURES/`
