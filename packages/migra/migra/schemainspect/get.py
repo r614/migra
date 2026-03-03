@@ -10,7 +10,7 @@ from .pg import PostgreSQL
 
 def get_inspector(
     x: psycopg.Connection[Any] | None,
-    schema: str | None = None,
+    schema: str | list[str] | None = None,
     exclude_schema: str | None = None,
 ) -> DBInspector:
     if schema and exclude_schema:
@@ -20,7 +20,13 @@ def get_inspector(
 
     inspected = PostgreSQL(x)
     if schema:
-        inspected.one_schema(schema)
+        if isinstance(schema, list):
+            if len(schema) == 1:
+                inspected.one_schema(schema[0])
+            else:
+                inspected.filter_schemas(schema)
+        else:
+            inspected.one_schema(schema)
     elif exclude_schema:
         inspected.exclude_schema(exclude_schema)
     return inspected
