@@ -1006,8 +1006,10 @@ class PostgreSQL(DBInspector):
             all_relations_query = all_relations_query.replace(replace, "")
             self.ALL_RELATIONS_QUERY = processed(all_relations_query)
             collations_query = COLLATIONS_QUERY
-            if self.pg_version >= 15:
-                collations_query = collations_query.replace("-- 15_AND_LATER", "")
+            if self.pg_version >= 17:
+                collations_query = collations_query.replace("-- 17_AND_LATER", "")
+            elif self.pg_version >= 15:
+                collations_query = collations_query.replace("-- 15_TO_16", "")
             else:
                 collations_query = collations_query.replace("-- PRE_15", "")
             self.COLLATIONS_QUERY = processed(collations_query)

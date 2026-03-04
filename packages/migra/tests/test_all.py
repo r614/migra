@@ -246,6 +246,9 @@ def test_postgres_objects():
 
 
 def setup_pg_schema(s):
+    role = s.execute("select 1 from pg_roles where rolname = 'schemainspect_test_role'")
+    if not list(role):
+        s.execute("create role schemainspect_test_role")
     s.execute("create table emptytable()")
     s.execute("comment on table emptytable is 'emptytable comment'")
     s.execute("create extension pg_trgm")
@@ -261,7 +264,7 @@ def setup_pg_schema(s):
             len         interval hour to minute,
             drange      daterange
         );
-        grant select, update, delete, insert on table films to postgres;
+        grant select, update, delete, insert on table films to schemainspect_test_role;
     """
     )
     s.execute("""CREATE VIEW v_films AS (select * from films)""")
@@ -462,10 +465,10 @@ def asserts_pg(i, has_timescale=False):
     assert n("films_title_idx") in t.indexes
 
     # privileges
-    g = InspectedPrivilege("table", "public", "films", "select", "postgres")
+    g = InspectedPrivilege("table", "public", "films", "select", "schemainspect_test_role")
     g = i.privileges[g.key]
-    assert g.create_statement == f'grant select on table {t_films} to "postgres";'
-    assert g.drop_statement == f'revoke select on table {t_films} from "postgres";'
+    assert g.create_statement == f'grant select on table {t_films} to "schemainspect_test_role";'
+    assert g.drop_statement == f'revoke select on table {t_films} from "schemainspect_test_role";'
 
     # composite types
     ct = i.composite_types[n("ttt")]
