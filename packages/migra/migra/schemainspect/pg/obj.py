@@ -35,6 +35,7 @@ TRIGGERS_QUERY = _read_sql("triggers.sql")
 COLLATIONS_QUERY = _read_sql("collations.sql")
 COLLATIONS_QUERY_9 = _read_sql("collations9.sql")
 RLSPOLICIES_QUERY = _read_sql("rlspolicies.sql")
+COMMENTS_QUERY = _read_sql("comments.sql")
 
 
 class InspectedSelectable(BaseInspectedSelectable):
@@ -633,6 +634,51 @@ class InspectedSchema(Inspected):
         return self.schema == other.schema
 
 
+class InspectedComment(Inspected):
+    def __init__(self, object_type, schema, name, column_name, comment):
+        self.object_type = object_type
+        self.schema = schema
+        self.name = name
+        self.column_name = column_name
+        self.comment = comment
+
+    @property
+    def quoted_full_name(self):
+        if self.column_name:
+            return f"{quoted_identifier(self.schema)}.{quoted_identifier(self.name)}.{quoted_identifier(self.column_name)}"
+        return quoted_identifier(self.name, schema=self.schema)
+
+    @property
+    def key(self):
+        if self.column_name:
+            return f"{self.object_type}:{self.schema}.{self.name}.{self.column_name}"
+        return f"{self.object_type}:{self.schema}.{self.name}"
+
+    @property
+    def target_clause(self):
+        if self.column_name:
+            return f"column {quoted_identifier(self.schema)}.{quoted_identifier(self.name)}.{quoted_identifier(self.column_name)}"
+        return f"{self.object_type} {quoted_identifier(self.name, schema=self.schema)}"
+
+    @property
+    def create_statement(self):
+        escaped = self.comment.replace("'", "''")
+        return f"comment on {self.target_clause} is '{escaped}';"
+
+    @property
+    def drop_statement(self):
+        return f"comment on {self.target_clause} is null;"
+
+    def __eq__(self, other):
+        return (
+            self.object_type == other.object_type
+            and self.schema == other.schema
+            and self.name == other.name
+            and self.column_name == other.column_name
+            and self.comment == other.comment
+        )
+
+
 class InspectedType(Inspected):
     def __init__(self, name, schema, columns):
         self.name = name
@@ -1001,7 +1047,7 @@ to {roleslist}{qual_clause}{withcheck_clause};
         return all(equalities)
 
 
-PROPS = "schemas relations tables views functions selectables sequences constraints indexes enums extensions privileges collations triggers rlspolicies domains"
+PROPS = "schemas relations tables views functions selectables sequences constraints indexes enums extensions privileges collations triggers rlspolicies domains comments"
 
 
 class PostgreSQL(DBInspector):
@@ -1054,6 +1100,7 @@ class PostgreSQL(DBInspector):
         self.SCHEMAS_QUERY = processed(SCHEMAS_QUERY)
         self.PRIVILEGES_QUERY = processed(PRIVILEGES_QUERY)
         self.TRIGGERS_QUERY = processed(TRIGGERS_QUERY)
+        self.COMMENTS_QUERY = processed(COMMENTS_QUERY)
 
         super().__init__(c, include_internal)
 
@@ -1075,6 +1122,7 @@ class PostgreSQL(DBInspector):
         self.load_rlspolicies()
         self.load_types()
         self.load_domains()
+        self.load_comments()
 
         self.load_deps()
         self.load_deps_all()
@@ -1577,6 +1625,20 @@ class PostgreSQL(DBInspector):
         ]  # type: list[InspectedType]
         self.domains = {t.signature: t for t in domains}
 
+    def load_comments(self):
+        q = self.execute(self.COMMENTS_QUERY)
+        comments = [
+            InspectedComment(
+                object_type=i.object_type,
+                schema=i.schema,
+                name=i.name,
+                column_name=i.column_name,
+                comment=i.comment,
+            )
+            for i in q
+        ]
+        self.comments = {c.key: c for c in comments}
+
     def filter_schema(self, schema=None, exclude_schema=None):
         if schema and exclude_schema:
             raise ValueError("Can only have schema or exclude schema, not both")
@@ -1684,4 +1746,5 @@ class PostgreSQL(DBInspector):
             and self.collations == other.collations
             and self.rlspolicies == other.rlspolicies
             and self.domains == other.domains
+            and self.comments == other.comments
         )

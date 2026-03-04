@@ -101,6 +101,7 @@ class Migration:
             self.add(self.changes.privileges(drops_only=True))
         self.add(self.changes.non_pk_constraints(drops_only=True))
 
+        self.add(self.changes.comments(drops_only=True))
         self.add(self.changes.mv_indexes(drops_only=True))
         self.add(self.changes.non_table_selectable_drops())
 
@@ -124,6 +125,7 @@ class Migration:
             self.add(self.changes.privileges(creations_only=True))
         self.add(self.changes.rlspolicies(creations_only=True))
         self.add(self.changes.triggers(creations_only=True))
+        self.add(self.changes.comments(creations_only=True))
         self.add(self.changes.collations(drops_only=True))
         self.add(self.changes.schemas(drops_only=True))
 
