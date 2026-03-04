@@ -1,3 +1,4 @@
+import pytest
 from migra import Migration
 from migra.db import connect, temporary_database
 from migra.schemainspect import get_inspector
@@ -45,3 +46,36 @@ def test_generated_column_inspected():
             assert cols["a"].generated_type is None
             assert cols["b"].generated_type == "s"
             assert cols["b"].is_generated is True
+
+
+def test_generated_columns_inspect(db):
+    with connect(db) as s:
+        i = get_inspector(s)
+
+        if i.pg_version < 12:
+            pytest.skip("generated columns not supported in < 12")
+
+        s.execute(
+            """create table t(
+                c int generated always as (1) stored
+        ) """
+        )
+
+        i = get_inspector(s)
+
+        t_key = '"public"."t"'
+        assert list(i.tables.keys())[0] == t_key
+
+        t = i.tables[t_key]
+
+        EXPECTED = ("1", False, False, True)
+
+        c = t.columns["c"]
+
+        tup = (c.default, c.is_identity, c.is_identity_always, c.is_generated)
+
+        assert tup == EXPECTED
+
+        EXPECTED = '"c" integer generated always as (1) stored'
+
+        assert c.creation_clause == EXPECTED

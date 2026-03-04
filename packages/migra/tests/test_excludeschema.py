@@ -1,7 +1,7 @@
 from migra.db import connect
 from migra.schemainspect import get_inspector
 
-from .test_all import setup_pg_schema
+from ._schemainspect_helpers import setup_pg_schema
 
 
 def asserts_pg_excludedschema(i, schema_names, excludedschema_name):
