@@ -6,8 +6,8 @@ import pytest
 from migra import Migration, Statements, UnsafeMigrationException
 from migra.command import parse_args, run
 from migra.db import connect, load_sql_from_file, temporary_database
-from pytest import raises
 from migra.schemainspect import get_inspector
+from pytest import raises
 
 
 def textdiff(a, b):

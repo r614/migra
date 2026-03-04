@@ -6,7 +6,6 @@ import psycopg
 import pytest
 from psycopg import sql
 
-
 schemainspect_test_role = "schemainspect_test_role"
 
 

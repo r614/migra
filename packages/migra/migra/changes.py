@@ -12,7 +12,6 @@ from .schemainspect.pg.obj import (
     InspectedSequence,
     InspectedTrigger,
 )
-
 from .statements import Statements
 from .util import differences
 

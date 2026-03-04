@@ -3,10 +3,10 @@ from __future__ import annotations
 from typing import Any
 
 import psycopg
-from .schemainspect import DBInspector, get_inspector
 
 from .changes import Changes
 from .db import execute
+from .schemainspect import DBInspector, get_inspector
 from .statements import Statements
 
 

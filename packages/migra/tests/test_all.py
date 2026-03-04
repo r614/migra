@@ -4,7 +4,6 @@ from copy import deepcopy
 import pytest
 from migra import schemainspect
 from migra.db import connect
-from pytest import raises
 from migra.schemainspect import NullInspector, get_inspector, to_pytype
 from migra.schemainspect.inspected import ColumnInfo
 from migra.schemainspect.misc import quoted_identifier
@@ -16,6 +15,7 @@ from migra.schemainspect.pg.obj import (
     InspectedPrivilege,
     InspectedSequence,
 )
+from pytest import raises
 
 T_CREATE = """create table "public"."films" (
     "code" character(5) not null,
