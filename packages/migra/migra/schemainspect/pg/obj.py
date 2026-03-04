@@ -1652,6 +1652,16 @@ class PostgreSQL(DBInspector):
     def one_schema(self, schema):
         self.filter_schema(schema=schema)
 
+    def filter_schemas(self, schemas):
+        """Filter to only include objects from the specified schemas."""
+        def in_schemas(x):
+            return x.schema in schemas
+
+        for prop in PROPS.split():
+            att = getattr(self, prop)
+            filtered = {k: v for k, v in att.items() if in_schemas(v)}
+            setattr(self, prop, filtered)
+
     def exclude_schema(self, schema):
         self.filter_schema(exclude_schema=schema)
 

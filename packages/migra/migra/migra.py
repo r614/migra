@@ -19,7 +19,7 @@ class Migration:
         self,
         x_from: DBInspector | psycopg.Connection[Any] | None,
         x_target: DBInspector | psycopg.Connection[Any] | None,
-        schema: str | None = None,
+        schema: str | list[str] | None = None,
         exclude_schema: str | None = None,
         ignore_extension_versions: bool = False,
     ) -> None:

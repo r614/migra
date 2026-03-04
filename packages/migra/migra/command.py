@@ -34,8 +34,9 @@ def parse_args(args: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "--schema",
         dest="schema",
+        action="append",
         default=None,
-        help="Restrict output to statements for a particular schema",
+        help="Restrict output to a particular schema (can be specified multiple times)",
     )
     parser.add_argument(
         "--exclude-schema",
@@ -83,7 +84,7 @@ def run(
     out: IO[str] | None = None,
     err: IO[str] | None = None,
 ) -> int:
-    schema = args.schema
+    schemas = args.schema
     exclude_schema = args.exclude_schema
     if not out:
         out = sys.stdout  # pragma: no cover
@@ -93,7 +94,7 @@ def run(
         m = Migration(
             ac0,
             ac1,
-            schema=schema,
+            schema=schemas,
             exclude_schema=exclude_schema,
             ignore_extension_versions=args.ignore_extension_versions,
         )

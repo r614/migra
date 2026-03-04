@@ -158,7 +158,7 @@ def do_fixture_test(
 
         args = parse_args(flags + [d0, d1])
         assert args.unsafe
-        assert args.schema == schema
+        assert args.schema == ([schema] if schema else schema)
         out, err = outs()
         assert run(args, out=out, err=err) == 2
         assert err.getvalue() == ""
