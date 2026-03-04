@@ -15,12 +15,15 @@ from .objects import (
     InspectedFunction,
     InspectedIndex,
     InspectedPrivilege,
+    InspectedPublication,
     InspectedRangeType,
     InspectedRole,
     InspectedRowPolicy,
+    InspectedRule,
     InspectedSchema,
     InspectedSelectable,
     InspectedSequence,
+    InspectedStatistics,
     InspectedTrigger,
     InspectedType,
 )
@@ -56,6 +59,9 @@ RLSPOLICIES_QUERY = _read_sql("rlspolicies.sql")
 COMMENTS_QUERY = _read_sql("comments.sql")
 ROLES_QUERY = _read_sql("roles.sql")
 RANGE_TYPES_QUERY = _read_sql("range_types.sql")
+PUBLICATIONS_QUERY = _read_sql("publications.sql")
+RULES_QUERY = _read_sql("rules.sql")
+STATISTICS_QUERY = _read_sql("statistics.sql")
 
 
 class PostgreSQL:
@@ -101,6 +107,9 @@ class PostgreSQL:
         self.COMMENTS_QUERY = processed(COMMENTS_QUERY)
         self.ROLES_QUERY = processed(ROLES_QUERY)
         self.RANGE_TYPES_QUERY = processed(RANGE_TYPES_QUERY)
+        self.PUBLICATIONS_QUERY = processed(PUBLICATIONS_QUERY)
+        self.RULES_QUERY = processed(RULES_QUERY)
+        self.STATISTICS_QUERY = processed(STATISTICS_QUERY)
 
         self.c = c
         self.include_internal = include_internal
@@ -127,6 +136,9 @@ class PostgreSQL:
         self.load_range_types()
         self.load_comments()
         self.load_roles()
+        self.load_publications()
+        self.load_rules()
+        self.load_statistics()
 
         self.load_deps()
         self.load_deps_all()
@@ -632,6 +644,53 @@ class PostgreSQL:
             for i in q
         ]
         self.roles = {r.name: r for r in roles}
+
+    def load_publications(self):
+        q = self.execute(self.PUBLICATIONS_QUERY)
+        publications = [
+            InspectedPublication(
+                name=i.name,
+                publish_all_tables=i.publish_all_tables,
+                publish_insert=i.publish_insert,
+                publish_update=i.publish_update,
+                publish_delete=i.publish_delete,
+                publish_truncate=i.publish_truncate,
+                publish_via_partition_root=i.publish_via_partition_root,
+                owner=i.owner,
+                tables=i.tables,
+            )
+            for i in q
+        ]
+        self.publications = {p.quoted_full_name: p for p in publications}
+
+    def load_rules(self):
+        q = self.execute(self.RULES_QUERY)
+        rules = [
+            InspectedRule(
+                name=i.name,
+                schema=i.schema,
+                table_name=i.table_name,
+                enabled=i.enabled,
+                definition=i.definition,
+            )
+            for i in q
+        ]
+        self.rules = {r.quoted_full_name: r for r in rules}
+
+    def load_statistics(self):
+        q = self.execute(self.STATISTICS_QUERY)
+        statistics = [
+            InspectedStatistics(
+                name=i.name,
+                schema=i.schema,
+                table_schema=i.table_schema,
+                table_name=i.table_name,
+                stattarget=i.stattarget,
+                definition=i.definition,
+            )
+            for i in q
+        ]
+        self.statistics = {s.quoted_full_name: s for s in statistics}
 
     def _filterable_props(self):
         return _FILTERABLE_PROPS

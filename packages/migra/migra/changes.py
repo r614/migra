@@ -746,6 +746,15 @@ class Changes:
             modifications_as_alters=True,
         )
 
+    @property
+    def publications(self) -> partial[Statements]:
+        return partial(
+            statements_for_changes,
+            self.i_from.publications,
+            self.i_target.publications,
+            modifications_as_alters=True,
+        )
+
     def __getattr__(self, name: str) -> partial[Statements]:
         if name in REGISTRY:
             return partial(
