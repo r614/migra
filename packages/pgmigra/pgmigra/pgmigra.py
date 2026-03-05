@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 import psycopg
@@ -31,22 +32,38 @@ class Migration:
             raise ValueError("You cannot have both a schema and excluded schema")
         self.schema = schema
         self.exclude_schema = exclude_schema
-        if isinstance(x_from, PostgreSQL):
-            self.changes.i_from = x_from
-        else:
-            self.changes.i_from = get_inspector(
-                x_from, schema=schema, exclude_schema=exclude_schema
-            )
+
+        if not isinstance(x_from, PostgreSQL) and not isinstance(x_target, PostgreSQL):
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                fut_from = pool.submit(
+                    get_inspector, x_from, schema=schema, exclude_schema=exclude_schema
+                )
+                fut_target = pool.submit(
+                    get_inspector, x_target, schema=schema, exclude_schema=exclude_schema
+                )
+                self.changes.i_from = fut_from.result()
+                self.changes.i_target = fut_target.result()
             if x_from:
                 self.s_from = x_from
-        if isinstance(x_target, PostgreSQL):
-            self.changes.i_target = x_target
-        else:
-            self.changes.i_target = get_inspector(
-                x_target, schema=schema, exclude_schema=exclude_schema
-            )
             if x_target:
                 self.s_target = x_target
+        else:
+            if isinstance(x_from, PostgreSQL):
+                self.changes.i_from = x_from
+            else:
+                self.changes.i_from = get_inspector(
+                    x_from, schema=schema, exclude_schema=exclude_schema
+                )
+                if x_from:
+                    self.s_from = x_from
+            if isinstance(x_target, PostgreSQL):
+                self.changes.i_target = x_target
+            else:
+                self.changes.i_target = get_inspector(
+                    x_target, schema=schema, exclude_schema=exclude_schema
+                )
+                if x_target:
+                    self.s_target = x_target
 
         self.changes.ignore_extension_versions = ignore_extension_versions
 

@@ -151,52 +151,99 @@ class PostgreSQL:
         self.include_internal = include_internal
         self.load_all()
 
-    def execute(self, q):
-        return self.c.execute(q).fetchall()
+    def _execute_all_queries(self):
+        queries = [
+            ("schemas", self.SCHEMAS_QUERY),
+            ("enums", self.ENUMS_QUERY),
+            ("relations", self.ALL_RELATIONS_QUERY),
+            ("indexes", self.INDEXES_QUERY),
+            ("sequences", self.SEQUENCES_QUERY),
+            ("constraints", self.CONSTRAINTS_QUERY),
+            ("extensions", self.EXTENSIONS_QUERY),
+            ("functions", self.FUNCTIONS_QUERY),
+            ("privileges", self.PRIVILEGES_QUERY),
+            ("triggers", self.TRIGGERS_QUERY),
+            ("collations", self.COLLATIONS_QUERY),
+            ("rlspolicies", self.RLSPOLICIES_QUERY),
+            ("types", self.TYPES_QUERY),
+            ("domains", self.DOMAINS_QUERY),
+            ("range_types", self.RANGE_TYPES_QUERY),
+            ("comments", self.COMMENTS_QUERY),
+            ("roles", self.ROLES_QUERY),
+            ("publications", self.PUBLICATIONS_QUERY),
+            ("rules", self.RULES_QUERY),
+            ("statistics", self.STATISTICS_QUERY),
+            ("fdws", self.FDWS_QUERY),
+            ("foreign_servers", self.FOREIGN_SERVERS_QUERY),
+            ("user_mappings", self.USER_MAPPINGS_QUERY),
+            ("event_triggers", self.EVENT_TRIGGERS_QUERY),
+            ("ts_dicts", self.TS_DICTS_QUERY),
+            ("ts_configs", self.TS_CONFIGS_QUERY),
+            ("ts_config_mappings", self.TS_CONFIG_MAPPINGS_QUERY),
+            ("casts", self.CASTS_QUERY),
+            ("operators", self.OPERATORS_QUERY),
+            ("operator_families", self.OPERATOR_FAMILIES_QUERY),
+            ("operator_classes", self.OPERATOR_CLASSES_QUERY),
+            ("opclass_operators", self.OPCLASS_OPERATORS_QUERY),
+            ("opclass_procs", self.OPCLASS_PROCS_QUERY),
+            ("deps", self.DEPS_QUERY),
+        ]
+        cursors = []
+        with self.c.pipeline():
+            for name, sql in queries:
+                cursors.append((name, self.c.execute(sql)))
+        return {name: cur.fetchall() for name, cur in cursors}
 
     def load_all(self):
-        self.load_schemas()
-        self.load_all_relations()
-        self.load_functions()
+        r = self._execute_all_queries()
+        self.load_schemas(r["schemas"])
+        self.load_all_relations(
+            r["enums"],
+            r["relations"],
+            r["indexes"],
+            r["sequences"],
+            r["constraints"],
+            r["extensions"],
+        )
+        self.load_functions(r["functions"])
         self.selectables = {}
         self.selectables.update(self.relations)
         self.selectables.update(self.composite_types)
         self.selectables.update(self.functions)
 
-        self.load_privileges()
-        self.load_triggers()
-        self.load_collations()
-        self.load_rlspolicies()
-        self.load_types()
-        self.load_domains()
-        self.load_range_types()
-        self.load_comments()
-        self.load_roles()
-        self.load_publications()
-        self.load_rules()
-        self.load_statistics()
-        self.load_fdws()
-        self.load_foreign_servers()
-        self.load_user_mappings()
-        self.load_event_triggers()
-        self.load_ts_dicts()
-        self.load_ts_configs()
-        self.load_casts()
-        self.load_operators()
-        self.load_operator_families()
-        self.load_operator_classes()
+        self.load_privileges(r["privileges"])
+        self.load_triggers(r["triggers"])
+        self.load_collations(r["collations"])
+        self.load_rlspolicies(r["rlspolicies"])
+        self.load_types(r["types"])
+        self.load_domains(r["domains"])
+        self.load_range_types(r["range_types"])
+        self.load_comments(r["comments"])
+        self.load_roles(r["roles"])
+        self.load_publications(r["publications"])
+        self.load_rules(r["rules"])
+        self.load_statistics(r["statistics"])
+        self.load_fdws(r["fdws"])
+        self.load_foreign_servers(r["foreign_servers"])
+        self.load_user_mappings(r["user_mappings"])
+        self.load_event_triggers(r["event_triggers"])
+        self.load_ts_dicts(r["ts_dicts"])
+        self.load_ts_configs(r["ts_configs"], r["ts_config_mappings"])
+        self.load_casts(r["casts"])
+        self.load_operators(r["operators"])
+        self.load_operator_families(r["operator_families"])
+        self.load_operator_classes(
+            r["operator_classes"], r["opclass_operators"], r["opclass_procs"]
+        )
 
-        self.load_deps()
+        self.load_deps(r["deps"])
         self.load_deps_all()
 
-    def load_schemas(self):
-        q = self.execute(self.SCHEMAS_QUERY)
-        schemas = [InspectedSchema(schema=each.schema) for each in q]
+    def load_schemas(self, rows):
+        schemas = [InspectedSchema(schema=each.schema) for each in rows]
         self.schemas = {schema.schema: schema for schema in schemas}
 
-    def load_rlspolicies(self):
-        q = self.execute(self.RLSPOLICIES_QUERY)
-
+    def load_rlspolicies(self, rows):
         rlspolicies = [
             InspectedRowPolicy(
                 name=p.name,
@@ -208,13 +255,12 @@ class PostgreSQL:
                 qual=p.qual,
                 withcheck=p.withcheck,
             )
-            for p in q
+            for p in rows
         ]
 
         self.rlspolicies = {p.key: p for p in rlspolicies}
 
-    def load_collations(self):
-        q = self.execute(self.COLLATIONS_QUERY)
+    def load_collations(self, rows):
         collations = [
             InspectedCollation(
                 schema=i.schema,
@@ -225,12 +271,11 @@ class PostgreSQL:
                 lc_ctype=i.lc_ctype,
                 version=i.version,
             )
-            for i in q
+            for i in rows
         ]
         self.collations = {i.quoted_full_name: i for i in collations}
 
-    def load_privileges(self):
-        q = self.execute(self.PRIVILEGES_QUERY)
+    def load_privileges(self, rows):
         privileges = [
             InspectedPrivilege(
                 object_type=i.object_type,
@@ -240,14 +285,12 @@ class PostgreSQL:
                 target_user=i.user,
                 columns=getattr(i, "columns", None),
             )
-            for i in q
+            for i in rows
         ]
         self.privileges = {i.key: i for i in privileges}
 
-    def load_deps(self):
-        q = self.execute(self.DEPS_QUERY)
-
-        self.deps = list(q)
+    def load_deps(self, rows):
+        self.deps = list(rows)
 
         for dep in self.deps:
             x = quoted_identifier(dep.name, dep.schema, dep.identity_arguments)
@@ -367,26 +410,26 @@ class PostgreSQL:
             ordering.reverse()
         return ordering
 
-    def load_all_relations(self):
+    def load_all_relations(
+        self, enum_rows, relation_rows, index_rows, sequence_rows, constraint_rows, extension_rows
+    ):
         self.tables = {}
         self.views = {}
         self.materialized_views = {}
         self.composite_types = {}
         self.foreign_tables = {}
 
-        q = self.execute(self.ENUMS_QUERY)
         enumlist = [
             InspectedEnum(
                 name=i.name,
                 schema=i.schema,
                 elements=i.elements,
             )
-            for i in q
+            for i in enum_rows
         ]
         self.enums = {i.quoted_full_name: i for i in enumlist}
-        q = self.execute(self.ALL_RELATIONS_QUERY)
 
-        for _, g in groupby(q, lambda x: (x.relationtype, x.schema, x.name)):
+        for _, g in groupby(relation_rows, lambda x: (x.relationtype, x.schema, x.name)):
             clist = list(g)
             f = clist[0]
 
@@ -468,7 +511,6 @@ class PostgreSQL:
             self.foreign_tables,
         ):
             self.relations.update(x)
-        q = self.execute(self.INDEXES_QUERY)
         indexlist = [
             InspectedIndex(
                 name=i.name,
@@ -490,10 +532,9 @@ class PostgreSQL:
                 partial_predicate=i.partial_predicate,
                 algorithm=i.algorithm,
             )
-            for i in q
+            for i in index_rows
         ]
         self.indexes = {i.quoted_full_name: i for i in indexlist}
-        q = self.execute(self.SEQUENCES_QUERY)
 
         sequencelist = [
             InspectedSequence(
@@ -502,14 +543,13 @@ class PostgreSQL:
                 table_name=i.table_name,
                 column_name=i.column_name,
             )
-            for i in q
+            for i in sequence_rows
         ]
         self.sequences = {i.quoted_full_name: i for i in sequencelist}
-        q = self.execute(self.CONSTRAINTS_QUERY)
 
         constraintlist = []
 
-        for i in q:
+        for i in constraint_rows:
             constraint = InspectedConstraint(
                 name=i.name,
                 schema=i.schema,
@@ -538,10 +578,9 @@ class PostgreSQL:
 
         self.constraints = {i.quoted_full_name: i for i in constraintlist}
 
-        q = self.execute(self.EXTENSIONS_QUERY)
         extensionlist = [
             InspectedExtension(name=i.name, schema=i.schema, version=i.version)
-            for i in q
+            for i in extension_rows
         ]
         self.extensions = {i.name: i for i in extensionlist}
         for each in self.indexes.values():
@@ -557,10 +596,9 @@ class PostgreSQL:
     def extensions_without_versions(self):
         return {k: v.unversioned_copy() for k, v in self.extensions.items()}
 
-    def load_functions(self):
+    def load_functions(self, rows):
         self.functions = {}
-        q = self.execute(self.FUNCTIONS_QUERY)
-        for _, g in groupby(q, lambda x: (x.schema, x.name, x.identity_arguments)):
+        for _, g in groupby(rows, lambda x: (x.schema, x.name, x.identity_arguments)):
             clist = list(g)
             f = clist[0]
             outs = [c for c in clist if c.parameter_mode == "OUT"]
@@ -613,8 +651,7 @@ class PostgreSQL:
             identity_arguments = f"({s.identity_arguments})"
             self.functions[s.quoted_full_name + identity_arguments] = s
 
-    def load_triggers(self):
-        q = self.execute(self.TRIGGERS_QUERY)
+    def load_triggers(self, rows):
         triggers = [
             InspectedTrigger(
                 i.name,
@@ -625,24 +662,20 @@ class PostgreSQL:
                 i.enabled,
                 i.full_definition,
             )
-            for i in q
+            for i in rows
         ]
         self.triggers = {t.signature: t for t in triggers}
 
-    def load_types(self):
-        q = self.execute(self.TYPES_QUERY)
-
+    def load_types(self, rows):
         def col(defn):
             return defn["attribute"], defn["type"]
 
         types = [
-            InspectedType(i.name, i.schema, dict(col(_) for _ in i.columns)) for i in q
+            InspectedType(i.name, i.schema, dict(col(_) for _ in i.columns)) for i in rows
         ]
         self.types = {t.signature: t for t in types}
 
-    def load_domains(self):
-        q = self.execute(self.DOMAINS_QUERY)
-
+    def load_domains(self, rows):
         domains = [
             InspectedDomain(
                 i.name,
@@ -654,12 +687,11 @@ class PostgreSQL:
                 i.default,
                 i.check,
             )
-            for i in q
+            for i in rows
         ]
         self.domains = {t.signature: t for t in domains}
 
-    def load_range_types(self):
-        q = self.execute(self.RANGE_TYPES_QUERY)
+    def load_range_types(self, rows):
         range_types = [
             InspectedRangeType(
                 name=i.name,
@@ -670,12 +702,11 @@ class PostgreSQL:
                 canonical=i.canonical,
                 subtype_diff=i.subtype_diff,
             )
-            for i in q
+            for i in rows
         ]
         self.range_types = {t.signature: t for t in range_types}
 
-    def load_comments(self):
-        q = self.execute(self.COMMENTS_QUERY)
+    def load_comments(self, rows):
         comments = [
             InspectedComment(
                 object_type=i.object_type,
@@ -684,12 +715,11 @@ class PostgreSQL:
                 column_name=i.column_name,
                 comment=i.comment,
             )
-            for i in q
+            for i in rows
         ]
         self.comments = {c.key: c for c in comments}
 
-    def load_roles(self):
-        q = self.execute(self.ROLES_QUERY)
+    def load_roles(self, rows):
         roles = [
             InspectedRole(
                 name=i.name,
@@ -703,12 +733,11 @@ class PostgreSQL:
                 connlimit=i.connlimit,
                 member_of=i.member_of,
             )
-            for i in q
+            for i in rows
         ]
         self.roles = {r.name: r for r in roles}
 
-    def load_publications(self):
-        q = self.execute(self.PUBLICATIONS_QUERY)
+    def load_publications(self, rows):
         publications = [
             InspectedPublication(
                 name=i.name,
@@ -721,12 +750,11 @@ class PostgreSQL:
                 owner=i.owner,
                 tables=i.tables,
             )
-            for i in q
+            for i in rows
         ]
         self.publications = {p.quoted_full_name: p for p in publications}
 
-    def load_rules(self):
-        q = self.execute(self.RULES_QUERY)
+    def load_rules(self, rows):
         rules = [
             InspectedRule(
                 name=i.name,
@@ -735,12 +763,11 @@ class PostgreSQL:
                 enabled=i.enabled,
                 definition=i.definition,
             )
-            for i in q
+            for i in rows
         ]
         self.rules = {r.quoted_full_name: r for r in rules}
 
-    def load_statistics(self):
-        q = self.execute(self.STATISTICS_QUERY)
+    def load_statistics(self, rows):
         statistics = [
             InspectedStatistics(
                 name=i.name,
@@ -750,12 +777,11 @@ class PostgreSQL:
                 stattarget=i.stattarget,
                 definition=i.definition,
             )
-            for i in q
+            for i in rows
         ]
         self.statistics = {s.quoted_full_name: s for s in statistics}
 
-    def load_fdws(self):
-        q = self.execute(self.FDWS_QUERY)
+    def load_fdws(self, rows):
         fdws = [
             InspectedFDW(
                 name=i.name,
@@ -766,12 +792,11 @@ class PostgreSQL:
                 validator_schema=i.validator_schema,
                 options=i.options,
             )
-            for i in q
+            for i in rows
         ]
         self.fdws = {f.quoted_full_name: f for f in fdws}
 
-    def load_foreign_servers(self):
-        q = self.execute(self.FOREIGN_SERVERS_QUERY)
+    def load_foreign_servers(self, rows):
         servers = [
             InspectedForeignServer(
                 name=i.name,
@@ -781,24 +806,22 @@ class PostgreSQL:
                 server_version=i.server_version,
                 options=i.options,
             )
-            for i in q
+            for i in rows
         ]
         self.foreign_servers = {s.quoted_full_name: s for s in servers}
 
-    def load_user_mappings(self):
-        q = self.execute(self.USER_MAPPINGS_QUERY)
+    def load_user_mappings(self, rows):
         mappings = [
             InspectedUserMapping(
                 server_name=i.server_name,
                 user_name=i.user_name,
                 options=getattr(i, "options", None),
             )
-            for i in q
+            for i in rows
         ]
         self.user_mappings = {m.key: m for m in mappings}
 
-    def load_event_triggers(self):
-        q = self.execute(self.EVENT_TRIGGERS_QUERY)
+    def load_event_triggers(self, rows):
         triggers = [
             InspectedEventTrigger(
                 name=i.name,
@@ -809,12 +832,11 @@ class PostgreSQL:
                 function_name=i.function_name,
                 function_schema=i.function_schema,
             )
-            for i in q
+            for i in rows
         ]
         self.event_triggers = {t.quoted_full_name: t for t in triggers}
 
-    def load_ts_dicts(self):
-        q = self.execute(self.TS_DICTS_QUERY)
+    def load_ts_dicts(self, rows):
         dicts = [
             InspectedTSDict(
                 name=i.name,
@@ -823,12 +845,11 @@ class PostgreSQL:
                 template_schema=i.template_schema,
                 options=i.options,
             )
-            for i in q
+            for i in rows
         ]
         self.ts_dicts = {d.quoted_full_name: d for d in dicts}
 
-    def load_ts_configs(self):
-        q = self.execute(self.TS_CONFIGS_QUERY)
+    def load_ts_configs(self, config_rows, mapping_rows):
         configs = [
             InspectedTSConfig(
                 name=i.name,
@@ -836,12 +857,11 @@ class PostgreSQL:
                 parser_name=i.parser_name,
                 parser_schema=i.parser_schema,
             )
-            for i in q
+            for i in config_rows
         ]
         config_map = {(c.schema, c.name): c for c in configs}
 
-        mq = self.execute(self.TS_CONFIG_MAPPINGS_QUERY)
-        for m in mq:
+        for m in mapping_rows:
             key = (m.config_schema, m.config_name)
             if key in config_map:
                 cfg = config_map[key]
@@ -852,8 +872,7 @@ class PostgreSQL:
 
         self.ts_configs = {c.quoted_full_name: c for c in configs}
 
-    def load_casts(self):
-        q = self.execute(self.CASTS_QUERY)
+    def load_casts(self, rows):
         casts = [
             InspectedCast(
                 source_type=i.source_type,
@@ -864,12 +883,11 @@ class PostgreSQL:
                 function_schema=i.function_schema,
                 function_args=i.function_args,
             )
-            for i in q
+            for i in rows
         ]
         self.casts = {c.key: c for c in casts}
 
-    def load_operators(self):
-        q = self.execute(self.OPERATORS_QUERY)
+    def load_operators(self, rows):
         operators = [
             InspectedOperator(
                 name=i.name,
@@ -887,24 +905,22 @@ class PostgreSQL:
                 can_hash=i.can_hash,
                 can_merge=i.can_merge,
             )
-            for i in q
+            for i in rows
         ]
         self.operators = {o.key: o for o in operators}
 
-    def load_operator_families(self):
-        q = self.execute(self.OPERATOR_FAMILIES_QUERY)
+    def load_operator_families(self, rows):
         families = [
             InspectedOperatorFamily(
                 name=i.name,
                 schema=i.schema,
                 access_method=i.access_method,
             )
-            for i in q
+            for i in rows
         ]
         self.operator_families = {f.key: f for f in families}
 
-    def load_operator_classes(self):
-        q = self.execute(self.OPERATOR_CLASSES_QUERY)
+    def load_operator_classes(self, class_rows, operator_rows, proc_rows):
         classes = [
             InspectedOperatorClass(
                 name=i.name,
@@ -916,12 +932,11 @@ class PostgreSQL:
                 family_schema=i.family_schema,
                 storage_type=i.storage_type,
             )
-            for i in q
+            for i in class_rows
         ]
         class_map = {(c.schema, c.name, c.access_method): c for c in classes}
 
-        oq = self.execute(self.OPCLASS_OPERATORS_QUERY)
-        for o in oq:
+        for o in operator_rows:
             key = (o.class_schema, o.class_name, o.access_method)
             if key in class_map:
                 class_map[key].operators.append(
@@ -934,8 +949,7 @@ class PostgreSQL:
                     }
                 )
 
-        pq = self.execute(self.OPCLASS_PROCS_QUERY)
-        for p in pq:
+        for p in proc_rows:
             key = (p.class_schema, p.class_name, p.access_method)
             if key in class_map:
                 class_map[key].procs.append(
